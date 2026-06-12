@@ -174,6 +174,47 @@ docker image prune -f
 
 ---
 
+### `restart.yml` — Reinicio vía SSH
+
+Reinicia un compose project en el servidor sin hacer pull de imagen nueva. Útil para aplicar cambios de configuración o recuperarse de un crash.
+
+```yaml
+jobs:
+  restart:
+    uses: PURISUAPU/ci-templates/.github/workflows/restart.yml@main
+    with:
+      compose-name: mi-servicio    # Requerido — nombre del proyecto docker compose
+      notify-discord: true         # Opcional — por defecto false
+    secrets: inherit
+```
+
+---
+
+### `ssh-run.yml` — Comando SSH arbitrario
+
+Ejecuta cualquier script bash en el servidor. Usado principalmente para backups y tareas de mantenimiento.
+
+```yaml
+jobs:
+  backup:
+    uses: PURISUAPU/ci-templates/.github/workflows/ssh-run.yml@main
+    with:
+      timeout: '120m'    # Opcional — por defecto 30m
+      script: |
+        DATE=$(date +'%Y-%m-%d-%H-%M-%S')
+        docker compose -p mi-servicio stop
+        docker run --rm --volumes-from mi-contenedor \
+          -v /docker-backups:/docker-backups busybox \
+          tar -zcvf /docker-backups/backup-$DATE.tar.gz /data
+        docker compose -p mi-servicio start
+    secrets: inherit
+```
+
+**Variables requeridas** (sincronizadas desde `org-admin`): `SERVER_IP`, `DEPLOY_SSH_USER`.
+**Secret requerido**: `SSH_PRIVATE_KEY`.
+
+---
+
 ### `release.yml` — GitHub Release
 
 Crea la release en GitHub con notas generadas automáticamente desde los commits, y notifica a Discord.
@@ -214,7 +255,7 @@ jobs:
 |---|---|---|
 | `Context access might be invalid: SECRET_NAME` | El linter del IDE no conoce los secrets del repo | Es solo una advertencia, el workflow funciona correctamente en runtime |
 | `Error: buildx failed` en docker.yml | El Dockerfile tiene un error de sintaxis | Revisar el Dockerfile localmente con `docker build .` |
-| `SSH: handshake failed` en deploy.yml | Clave pública no instalada en el servidor | Añadir la clave pública de `DEPLOY_SSH_KEY` en `~/.ssh/authorized_keys` del servidor |
+| `SSH: handshake failed` en deploy.yml | Clave pública no instalada en el servidor | Añadir la clave pública de `SSH_PRIVATE_KEY` en `~/.ssh/authorized_keys` del servidor |
 | `no such file or directory` en deploy.yml | El directorio del servicio no existe en el servidor | Crear `/opt/<service-name>/` y añadir el `docker-compose.yml` |
 | `docker compose pull` falla con 401 | El servidor no tiene acceso a GHCR | Hacer `docker login ghcr.io` en el servidor con un PAT |
 | Release no genera notas | No hay commits convencionales desde la última release | Las notas automáticas requieren el formato `feat:`, `fix:`, etc. |
