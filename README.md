@@ -16,6 +16,12 @@ Workflows reutilizables de GitHub Actions para toda la organización. Los proyec
 
 ---
 
+## Documentación
+
+- [Guía de uso completa](docs/guia-uso.md) — ejemplos detallados, todos los inputs y solución de problemas
+
+---
+
 ## Cómo usarlos
 
 Desde cualquier repositorio del proyecto, en el workflow `ci.yml`:
