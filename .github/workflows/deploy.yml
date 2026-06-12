@@ -4,17 +4,13 @@ on:
   workflow_call:
     inputs:
       service-name:
-        description: 'Nombre del servicio / stack en Portainer'
+        description: 'Nombre del servicio (= nombre del repo, = directorio en el servidor)'
         type: string
         required: true
-      portainer-url:
-        description: 'URL base de Portainer (ej: https://portainer.example.com)'
+      deploy-path:
+        description: 'Ruta absoluta en el servidor donde está el docker-compose.yml'
         type: string
-        required: true
-      image-name:
-        description: 'Nombre de la imagen Docker (igual que en docker.yml)'
-        type: string
-        required: true
+        default: ''
       environment:
         description: 'Entorno de despliegue (production / staging)'
         type: string
@@ -24,7 +20,7 @@ on:
         type: boolean
         default: true
     secrets:
-      PORTAINER_TOKEN:
+      DEPLOY_SSH_KEY:
         required: true
       DISCORD_WEBHOOK:
         required: false
@@ -35,15 +31,26 @@ jobs:
     environment: ${{ inputs.environment }}
 
     steps:
-      - name: Trigger Portainer redeploy
+      - name: Set deploy path
+        id: path
         run: |
-          IMAGE="ghcr.io/${{ github.repository_owner }}/${{ inputs.image-name }}:sha-$(echo ${{ github.sha }} | cut -c1-7)"
-          curl -s -X POST \
-            "${{ inputs.portainer-url }}/api/stacks/webhooks/${{ inputs.service-name }}" \
-            -H "X-API-Key: ${{ secrets.PORTAINER_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"image\": \"$IMAGE\"}" \
-            --fail-with-body
+          if [ -n "${{ inputs.deploy-path }}" ]; then
+            echo "dir=${{ inputs.deploy-path }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=/opt/${{ inputs.service-name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ vars.DEPLOY_SSH_HOST }}
+          username: ${{ vars.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ${{ steps.path.outputs.dir }}
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -f
 
       - name: Notify Discord
         if: inputs.notify-discord && always()
@@ -56,7 +63,7 @@ jobs:
             -d "{
               \"embeds\": [{
                 \"title\": \"$EMOJI Deploy ${{ inputs.service-name }}\",
-                \"description\": \"**Repo:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** ${{ github.sha }}\n**Estado:** $STATUS\",
+                \"description\": \"**Repo:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** $(echo ${{ github.sha }} | cut -c1-7)\n**Estado:** $STATUS\",
                 \"color\": $COLOR
               }]
             }"
