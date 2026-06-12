@@ -1,0 +1,49 @@
+name: Restart
+
+on:
+  workflow_call:
+    inputs:
+      compose-name:
+        description: 'Nombre del proyecto docker compose a reiniciar'
+        type: string
+        required: true
+      notify-discord:
+        description: 'Enviar notificación a Discord al terminar'
+        type: boolean
+        default: false
+    secrets:
+      SSH_PRIVATE_KEY:
+        required: true
+      DISCORD_WEBHOOK:
+        required: false
+
+jobs:
+  restart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Restart ${{ inputs.compose-name }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ vars.SERVER_IP }}
+          username: ${{ vars.DEPLOY_SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            docker compose -p ${{ inputs.compose-name }} restart
+
+      - name: Notify Discord
+        if: inputs.notify-discord && always()
+        run: |
+          STATUS="${{ job.status }}"
+          COLOR=$([[ "$STATUS" == "success" ]] && echo "3066993" || echo "15158332")
+          EMOJI=$([[ "$STATUS" == "success" ]] && echo "✅" || echo "❌")
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"$EMOJI Restart ${{ inputs.compose-name }}\",
+                \"description\": \"**Estado:** $STATUS\",
+                \"color\": $COLOR
+              }]
+            }"

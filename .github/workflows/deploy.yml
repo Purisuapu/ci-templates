@@ -20,7 +20,7 @@ on:
         type: boolean
         default: true
     secrets:
-      DEPLOY_SSH_KEY:
+      SSH_PRIVATE_KEY:
         required: true
       DISCORD_WEBHOOK:
         required: false
@@ -43,9 +43,9 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ vars.DEPLOY_SSH_HOST }}
+          host: ${{ vars.SERVER_IP }}
           username: ${{ vars.DEPLOY_SSH_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ${{ steps.path.outputs.dir }}
             docker compose pull

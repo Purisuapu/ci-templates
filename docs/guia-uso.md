@@ -17,7 +17,7 @@ jobs:
     secrets: inherit
 ```
 
-`secrets: inherit` pasa automáticamente todos los secrets que `org-admin` sincronizó en el repo — no es necesario declararlos uno a uno.
+`secrets: inherit` pasa automáticamente todos los secrets y variables que `org-admin` sincronizó en el repo — no es necesario declararlos uno a uno.
 
 ---
 
@@ -56,16 +56,15 @@ jobs:
 
   deploy:
     needs: docker
-    if: github.ref == 'refs/heads/main' || github.event_name == 'release'
+    if: github.ref == 'refs/heads/main'
     uses: PURISUAPU/ci-templates/.github/workflows/deploy.yml@main
     with:
       service-name: nombre-del-servicio
-      portainer-url: https://portainer.example.com
-      image-name: nombre-del-servicio
+      # deploy-path: '/opt/mi-servicio'  # opcional, por defecto /opt/<service-name>
     secrets: inherit
 
   release:
-    needs: deploy
+    needs: docker
     if: github.event_name == 'release'
     uses: PURISUAPU/ci-templates/.github/workflows/release.yml@main
     secrets: inherit
@@ -140,28 +139,38 @@ jobs:
 
 ---
 
-### `deploy.yml` — Deploy en Portainer
+### `deploy.yml` — Deploy vía SSH
 
-Actualiza el stack en Portainer y notifica el resultado a Discord.
+Se conecta al servidor vía SSH, hace `docker compose pull` y reinicia el servicio. Notifica el resultado a Discord.
 
 ```yaml
 jobs:
   deploy:
     uses: PURISUAPU/ci-templates/.github/workflows/deploy.yml@main
     with:
-      service-name: mi-servicio                    # Requerido — nombre del stack en Portainer
-      portainer-url: https://portainer.example.com # Requerido
-      image-name: mi-servicio                      # Requerido — nombre de la imagen Docker
-      environment: production                       # Opcional: production | staging
-      notify-discord: true                          # Opcional
+      service-name: mi-servicio          # Requerido — nombre del repo/servicio
+      deploy-path: /opt/mi-servicio      # Opcional — por defecto /opt/<service-name>
+      environment: production            # Opcional: production | staging
+      notify-discord: true               # Opcional
     secrets: inherit
 ```
 
-**Secrets necesarios** (llegan vía `org-admin`):
-- `PORTAINER_TOKEN` — API key de Portainer
-- `DISCORD_WEBHOOK` — para la notificación (solo si `notify-discord: true`)
+**Variables de org requeridas** (sincronizadas desde `org-admin`):
+- `SERVER_IP` — IP o dominio del servidor
+- `DEPLOY_SSH_USER` — usuario SSH
 
-**Cómo funciona el redeploy:** envía un POST al webhook del stack en Portainer con la nueva imagen. Portainer se encarga de hacer pull y reiniciar el contenedor.
+**Secret requerido** (sincronizado desde `org-admin`):
+- `SSH_PRIVATE_KEY` — clave privada SSH
+
+**Prerrequisito en el servidor:** el directorio `/opt/<service-name>/` debe existir con un `docker-compose.yml` que use la imagen de GHCR. El usuario SSH debe tener la clave pública correspondiente a `DEPLOY_SSH_KEY` en `~/.ssh/authorized_keys`.
+
+**Qué ejecuta en el servidor:**
+```bash
+cd /opt/<service-name>
+docker compose pull
+docker compose up -d --remove-orphans
+docker image prune -f
+```
 
 ---
 
@@ -174,8 +183,8 @@ jobs:
   release:
     uses: PURISUAPU/ci-templates/.github/workflows/release.yml@main
     with:
-      draft: false        # Opcional — true crea borrador sin notificar Discord
-      prerelease: false   # Opcional
+      draft: false          # Opcional — true crea borrador sin notificar Discord
+      prerelease: false     # Opcional
       generate-notes: true  # Opcional — notas automáticas desde commits
       notify-discord: true  # Opcional
     secrets: inherit
@@ -205,6 +214,8 @@ jobs:
 |---|---|---|
 | `Context access might be invalid: SECRET_NAME` | El linter del IDE no conoce los secrets del repo | Es solo una advertencia, el workflow funciona correctamente en runtime |
 | `Error: buildx failed` en docker.yml | El Dockerfile tiene un error de sintaxis | Revisar el Dockerfile localmente con `docker build .` |
-| Deploy a Portainer devuelve 401 | `PORTAINER_TOKEN` expirado o incorrecto | Regenerar el token en Portainer y actualizar el secret en `org-admin` |
+| `SSH: handshake failed` en deploy.yml | Clave pública no instalada en el servidor | Añadir la clave pública de `DEPLOY_SSH_KEY` en `~/.ssh/authorized_keys` del servidor |
+| `no such file or directory` en deploy.yml | El directorio del servicio no existe en el servidor | Crear `/opt/<service-name>/` y añadir el `docker-compose.yml` |
+| `docker compose pull` falla con 401 | El servidor no tiene acceso a GHCR | Hacer `docker login ghcr.io` en el servidor con un PAT |
 | Release no genera notas | No hay commits convencionales desde la última release | Las notas automáticas requieren el formato `feat:`, `fix:`, etc. |
 | El workflow no aparece en el repo destino | El archivo `.github/workflows/ci.yml` no existe en ese repo | Asegurarse de que el repo se creó desde `template-project` |

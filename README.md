@@ -11,7 +11,9 @@ Workflows reutilizables de GitHub Actions para toda la organización. Los proyec
 | `build.yml` | Instala dependencias y compila el proyecto (Node.js) |
 | `test.yml` | Ejecuta la suite de tests |
 | `docker.yml` | Build y push de imagen Docker a GHCR |
-| `deploy.yml` | Redeploy en Portainer + notificación a Discord |
+| `deploy.yml` | Deploy vía SSH + docker compose + notificación a Discord |
+| `restart.yml` | Reinicia un compose project vía SSH |
+| `ssh-run.yml` | Ejecuta un script bash arbitrario en el servidor vía SSH |
 | `release.yml` | Crea GitHub Release con notas automáticas + notificación a Discord |
 
 ---
@@ -49,8 +51,6 @@ jobs:
     uses: PURISUAPU/ci-templates/.github/workflows/deploy.yml@main
     with:
       service-name: nombre-del-servicio
-      portainer-url: https://portainer.example.com
-      image-name: nombre-del-servicio
     secrets: inherit
 ```
 
@@ -90,13 +90,31 @@ jobs:
 
 | Input | Descripción | Default |
 |---|---|---|
-| `service-name` | Nombre del stack en Portainer | **requerido** |
-| `portainer-url` | URL base de Portainer | **requerido** |
-| `image-name` | Nombre de la imagen Docker | **requerido** |
+| `service-name` | Nombre del servicio (= nombre del repo) | **requerido** |
+| `deploy-path` | Ruta en el servidor donde está el `docker-compose.yml` | `/opt/<service-name>` |
 | `environment` | Entorno (`production` / `staging`) | `production` |
 | `notify-discord` | Notificar a Discord | `true` |
 
-Secrets requeridos (llegan vía `org-admin`): `PORTAINER_TOKEN`, `DISCORD_WEBHOOK`.
+Variables de org requeridas (llegan vía `org-admin`): `SERVER_IP`, `DEPLOY_SSH_USER`.
+Secret requerido: `SSH_PRIVATE_KEY`. Secret opcional: `DISCORD_WEBHOOK`.
+
+### `restart.yml`
+
+| Input | Descripción | Default |
+|---|---|---|
+| `compose-name` | Nombre del proyecto docker compose a reiniciar | **requerido** |
+| `notify-discord` | Notificar a Discord | `false` |
+
+Secret requerido: `SSH_PRIVATE_KEY`. Secret opcional: `DISCORD_WEBHOOK`.
+
+### `ssh-run.yml`
+
+| Input | Descripción | Default |
+|---|---|---|
+| `script` | Script bash a ejecutar en el servidor | **requerido** |
+| `timeout` | Tiempo máximo de ejecución (ej: `30m`, `120m`) | `30m` |
+
+Secret requerido: `SSH_PRIVATE_KEY`. Variables requeridas: `SERVER_IP`, `DEPLOY_SSH_USER`.
 
 ### `release.yml`
 
@@ -121,6 +139,8 @@ ci-templates/
         ├── test.yml
         ├── docker.yml
         ├── deploy.yml
+        ├── restart.yml
+        ├── ssh-run.yml
         └── release.yml
 ```
 

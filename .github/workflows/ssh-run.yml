@@ -1,0 +1,31 @@
+name: SSH Run
+
+on:
+  workflow_call:
+    inputs:
+      script:
+        description: 'Script bash a ejecutar en el servidor remoto'
+        type: string
+        required: true
+      timeout:
+        description: 'Tiempo máximo de ejecución del script (ej: 30m, 120m)'
+        type: string
+        default: '30m'
+    secrets:
+      SSH_PRIVATE_KEY:
+        required: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 125
+
+    steps:
+      - name: Run remote command
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ vars.SERVER_IP }}
+          username: ${{ vars.DEPLOY_SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: ${{ inputs.timeout }}
+          script: ${{ inputs.script }}
