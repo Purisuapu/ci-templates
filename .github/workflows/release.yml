@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      draft:
+        description: 'Crear release como borrador'
+        type: boolean
+        default: false
+      prerelease:
+        description: 'Marcar como pre-release'
+        type: boolean
+        default: false
+      generate-notes:
+        description: 'Generar notas de release automáticamente desde commits'
+        type: boolean
+        default: true
+      notify-discord:
+        description: 'Enviar notificación a Discord al publicar'
+        type: boolean
+        default: true
+    secrets:
+      DISCORD_WEBHOOK:
+        required: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub Release
+        id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: ${{ inputs.draft }}
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: ${{ inputs.generate-notes }}
+
+      - name: Notify Discord
+        if: inputs.notify-discord && !inputs.draft
+        run: |
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"🚀 Nueva release: ${{ github.ref_name }}\",
+                \"description\": \"**Repo:** ${{ github.repository }}\n**Release:** ${{ steps.release.outputs.url }}\",
+                \"color\": 3066993
+              }]
+            }"

@@ -1,0 +1,62 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      service-name:
+        description: 'Nombre del servicio / stack en Portainer'
+        type: string
+        required: true
+      portainer-url:
+        description: 'URL base de Portainer (ej: https://portainer.example.com)'
+        type: string
+        required: true
+      image-name:
+        description: 'Nombre de la imagen Docker (igual que en docker.yml)'
+        type: string
+        required: true
+      environment:
+        description: 'Entorno de despliegue (production / staging)'
+        type: string
+        default: 'production'
+      notify-discord:
+        description: 'Enviar notificación a Discord al terminar'
+        type: boolean
+        default: true
+    secrets:
+      PORTAINER_TOKEN:
+        required: true
+      DISCORD_WEBHOOK:
+        required: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Trigger Portainer redeploy
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/${{ inputs.image-name }}:sha-$(echo ${{ github.sha }} | cut -c1-7)"
+          curl -s -X POST \
+            "${{ inputs.portainer-url }}/api/stacks/webhooks/${{ inputs.service-name }}" \
+            -H "X-API-Key: ${{ secrets.PORTAINER_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"image\": \"$IMAGE\"}" \
+            --fail-with-body
+
+      - name: Notify Discord
+        if: inputs.notify-discord && always()
+        run: |
+          STATUS="${{ job.status }}"
+          COLOR=$([[ "$STATUS" == "success" ]] && echo "3066993" || echo "15158332")
+          EMOJI=$([[ "$STATUS" == "success" ]] && echo "✅" || echo "❌")
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"$EMOJI Deploy ${{ inputs.service-name }}\",
+                \"description\": \"**Repo:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** ${{ github.sha }}\n**Estado:** $STATUS\",
+                \"color\": $COLOR
+              }]
+            }"

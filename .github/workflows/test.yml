@@ -1,0 +1,41 @@
+name: Test
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: 'Versión de Node.js'
+        type: string
+        default: '20'
+      working-directory:
+        description: 'Directorio de trabajo'
+        type: string
+        default: '.'
+      test-command:
+        description: 'Comando para ejecutar los tests'
+        type: string
+        default: 'npm test'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+          cache-dependency-path: '${{ inputs.working-directory }}/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: ${{ inputs.test-command }}
