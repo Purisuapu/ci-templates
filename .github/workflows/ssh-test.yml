@@ -12,16 +12,23 @@ jobs:
     timeout-minutes: 5
 
     steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "StrictHostKeyChecking no" >> ~/.ssh/config
+
       - name: Test SSH connection
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ vars.SERVER_IP }}
-          username: ${{ vars.DEPLOY_SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            echo "✅ SSH connection OK"
-            echo "   Host: $(hostname)"
-            echo "   User: $(whoami)"
-            echo "   Docker: $(docker --version)"
-            echo "   Compose: $(docker compose version)"
-            docker info --format "   Engine version: {{.ServerVersion}}"
+        run: |
+          for i in 1 2 3; do
+            ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 \
+              "${{ vars.DEPLOY_SSH_USER }}@${{ vars.SERVER_IP }}" \
+              'echo "✅ SSH connection OK"
+               echo "   Host: $(hostname)"
+               echo "   User: $(whoami)"
+               echo "   Docker: $(docker --version)"
+               echo "   Compose: $(docker compose version)"
+               docker info --format "   Engine version: {{.ServerVersion}}"' && break
+            [ $i -lt 3 ] && echo "Attempt $i failed, retrying in 15s..." && sleep 15 || exit 1
+          done

@@ -21,11 +21,18 @@ jobs:
     timeout-minutes: 125
 
     steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "StrictHostKeyChecking no" >> ~/.ssh/config
+
       - name: Run remote command
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ vars.SERVER_IP }}
-          username: ${{ vars.DEPLOY_SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: ${{ inputs.timeout }}
-          script: ${{ inputs.script }}
+        run: |
+          for i in 1 2 3; do
+            ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 \
+              "${{ vars.DEPLOY_SSH_USER }}@${{ vars.SERVER_IP }}" \
+              "${{ inputs.script }}" && break
+            [ $i -lt 3 ] && echo "Attempt $i failed, retrying in 15s..." && sleep 15 || exit 1
+          done
