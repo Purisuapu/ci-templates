@@ -60,27 +60,36 @@ jobs:
             echo "list=${{ inputs.compose-file }}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "StrictHostKeyChecking no" >> ~/.ssh/config
+
       - name: Copy files to server
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ vars.SERVER_IP }}
-          username: ${{ vars.DEPLOY_SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: ${{ steps.files.outputs.list }}
-          target: ${{ steps.path.outputs.dir }}
-          strip_components: 0
+        run: |
+          DIR="${{ steps.path.outputs.dir }}"
+          HOST="${{ vars.SERVER_IP }}"
+          USER="${{ vars.DEPLOY_SSH_USER }}"
+          FILES=$(echo "${{ steps.files.outputs.list }}" | tr ',' ' ')
+          for i in 1 2 3; do
+            echo "SCP attempt $i..."
+            scp -i ~/.ssh/deploy_key -o ConnectTimeout=15 $FILES "$USER@$HOST:$DIR/" && break
+            [ $i -lt 3 ] && echo "Failed, retrying in 15s..." && sleep 15 || exit 1
+          done
 
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ vars.SERVER_IP }}
-          username: ${{ vars.DEPLOY_SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd ${{ steps.path.outputs.dir }}
-            docker compose pull
-            docker compose up -d --remove-orphans
-            docker image prune -f
+        run: |
+          DIR="${{ steps.path.outputs.dir }}"
+          HOST="${{ vars.SERVER_IP }}"
+          USER="${{ vars.DEPLOY_SSH_USER }}"
+          for i in 1 2 3; do
+            echo "SSH attempt $i..."
+            ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 "$USER@$HOST" \
+              "cd $DIR && docker compose pull && docker compose up -d --remove-orphans && docker image prune -f" && break
+            [ $i -lt 3 ] && echo "Failed, retrying in 15s..." && sleep 15 || exit 1
+          done
 
       - name: Notify Discord
         if: inputs.notify-discord && always()
