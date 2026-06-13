@@ -14,6 +14,7 @@ Workflows reutilizables de GitHub Actions para toda la organización. Los proyec
 | `deploy.yml` | Deploy vía SSH + docker compose + notificación a Discord |
 | `restart.yml` | Reinicia un compose project vía SSH |
 | `ssh-run.yml` | Ejecuta un script bash arbitrario en el servidor vía SSH |
+| `ssh-test.yml` | Verifica la conexión SSH y que Docker esté disponible en el servidor |
 | `release.yml` | Crea GitHub Release con notas automáticas + notificación a Discord |
 
 ---
@@ -141,6 +142,7 @@ ci-templates/
         ├── deploy.yml
         ├── restart.yml
         ├── ssh-run.yml
+        ├── ssh-test.yml
         └── release.yml
 ```
 
