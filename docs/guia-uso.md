@@ -162,7 +162,7 @@ jobs:
 **Secret requerido** (sincronizado desde `org-admin`):
 - `SSH_PRIVATE_KEY` — clave privada SSH
 
-**Prerrequisito en el servidor:** el directorio `/opt/<service-name>/` debe existir con un `docker-compose.yml` que use la imagen de GHCR. El usuario SSH debe tener la clave pública correspondiente a `DEPLOY_SSH_KEY` en `~/.ssh/authorized_keys`.
+**Prerrequisito en el servidor:** el directorio `/opt/<service-name>/` debe existir con un `docker-compose.yml` que use la imagen de GHCR. El usuario SSH debe tener la clave pública correspondiente a `SSH_PRIVATE_KEY` en `~/.ssh/authorized_keys`.
 
 **Qué ejecuta en el servidor:**
 ```bash
