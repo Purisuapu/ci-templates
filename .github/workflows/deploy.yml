@@ -11,6 +11,14 @@ on:
         description: 'Ruta absoluta en el servidor donde está el docker-compose.yml'
         type: string
         default: ''
+      compose-file:
+        description: 'Nombre del archivo docker-compose en el repo'
+        type: string
+        default: 'docker-compose.yaml'
+      sync-files:
+        description: 'Archivos adicionales del repo a copiar al servidor (separados por coma). El compose-file ya se copia siempre.'
+        type: string
+        default: ''
       environment:
         description: 'Entorno de despliegue (production / staging)'
         type: string
@@ -31,6 +39,9 @@ jobs:
     environment: ${{ inputs.environment }}
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set deploy path
         id: path
         run: |
@@ -39,6 +50,25 @@ jobs:
           else
             echo "dir=/opt/${{ inputs.service-name }}" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Set files to sync
+        id: files
+        run: |
+          if [ -n "${{ inputs.sync-files }}" ]; then
+            echo "list=${{ inputs.compose-file }},${{ inputs.sync-files }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "list=${{ inputs.compose-file }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Copy files to server
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ vars.SERVER_IP }}
+          username: ${{ vars.DEPLOY_SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: ${{ steps.files.outputs.list }}
+          target: ${{ steps.path.outputs.dir }}
+          strip_components: 0
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
