@@ -32,6 +32,8 @@ on:
         required: true
       DISCORD_WEBHOOK:
         required: false
+      GHCR_READ_TOKEN:
+        required: false
 
 jobs:
   deploy:
@@ -80,14 +82,20 @@ jobs:
           done
 
       - name: Deploy via SSH
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
         run: |
           DIR="${{ steps.path.outputs.dir }}"
           HOST="${{ vars.SERVER_IP }}"
           USER="${{ vars.DEPLOY_SSH_USER }}"
+          GHCR_LOGIN=""
+          if [ -n "$GHCR_TOKEN" ]; then
+            GHCR_LOGIN="echo $GHCR_TOKEN | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin &&"
+          fi
           for i in 1 2 3; do
             echo "SSH attempt $i..."
             ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 "$USER@$HOST" \
-              "cd $DIR && docker compose pull && docker compose up -d --remove-orphans && docker image prune -f" && break
+              "$GHCR_LOGIN cd $DIR && docker compose pull && docker compose up -d --remove-orphans && docker image prune -f" && break
             [ $i -lt 3 ] && echo "Failed, retrying in 15s..." && sleep 15 || exit 1
           done
 
