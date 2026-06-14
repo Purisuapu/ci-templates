@@ -102,7 +102,7 @@ jobs:
             -d "{
               \"embeds\": [{
                 \"title\": \"$EMOJI Deploy ${{ inputs.service-name }}\",
-                \"description\": \"**Repo:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** $(echo ${{ github.sha }} | cut -c1-7)\n**Estado:** $STATUS\",
+                \"description\": \"**Repo:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** $(echo ${{ github.sha }} | cut -c1-7)\n**Estado:** $STATUS\n**Source:** ${{ github.event_name }}\",
                 \"color\": $COLOR
               }]
             }"
