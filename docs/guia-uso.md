@@ -237,6 +237,28 @@ jobs:
 
 ---
 
+### `renovate-notify.yml` — Notificación de PRs de Renovate
+
+Envía una notificación a Discord cuando Renovate abre una PR en el repo. El embed incluye el título de la PR, el repositorio y la URL.
+
+Cada repo infra necesita un caller propio en `.github/workflows/renovate-notify.yml`:
+
+```yaml
+name: Renovate PR Notification
+on:
+  pull_request:
+    types: [opened]
+jobs:
+  notify:
+    if: github.actor == 'renovate[bot]'
+    uses: PURISUAPU/ci-templates/.github/workflows/renovate-notify.yml@main
+    secrets: inherit
+```
+
+**Secret opcional** (sincronizado desde `org-admin`): `DISCORD_WEBHOOK`. Si no está configurado, el paso de notificación se omite sin error.
+
+---
+
 ## Añadir un nuevo workflow a ci-templates
 
 1. Crea el archivo en `.github/workflows/nombre.yml` con `on: workflow_call`.
