@@ -199,14 +199,13 @@ jobs:
   backup:
     uses: PURISUAPU/ci-templates/.github/workflows/ssh-run.yml@main
     with:
-      timeout: '120m'    # Opcional — por defecto 30m
+      timeout: '30m'
       script: |
         DATE=$(date +'%Y-%m-%d-%H-%M-%S')
-        docker compose -p mi-servicio stop
-        docker run --rm --volumes-from mi-contenedor \
-          -v /docker-backups:/docker-backups busybox \
-          tar -zcvf /docker-backups/backup-$DATE.tar.gz /data
-        docker compose -p mi-servicio start
+        mkdir -p /opt/backups/mi-servicio
+        docker exec mi-db mysqldump -u user -p"$(cat /opt/mi-servicio/db_password.txt)" mi-db \
+          | gzip > /opt/backups/mi-servicio/db-$DATE.sql.gz
+        find /opt/backups/mi-servicio -mtime +7 -type f -delete
     secrets: inherit
 ```
 
@@ -260,3 +259,4 @@ jobs:
 | `docker compose pull` falla con 401 | El servidor no tiene acceso a GHCR | Hacer `docker login ghcr.io` en el servidor con un PAT |
 | Release no genera notas | No hay commits convencionales desde la última release | Las notas automáticas requieren el formato `feat:`, `fix:`, etc. |
 | El workflow no aparece en el repo destino | El archivo `.github/workflows/ci.yml` no existe en ese repo | Asegurarse de que el repo se creó desde `template-project` |
+| `i/o timeout` en SSH | CrowdSec bloqueó la IP del runner | El retry loop usa IPs diferentes en cada intento — reintenta automáticamente |
