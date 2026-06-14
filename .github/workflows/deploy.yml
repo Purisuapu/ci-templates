@@ -75,10 +75,13 @@ jobs:
           HOST="${{ vars.SERVER_IP }}"
           USER="${{ vars.DEPLOY_SSH_USER }}"
           FILES=$(echo "${{ steps.files.outputs.list }}" | tr ',' ' ')
-          for i in 1 2 3; do
-            echo "SCP attempt $i..."
-            scp -i ~/.ssh/deploy_key -o ConnectTimeout=15 $FILES "$USER@$HOST:$DIR/" && break
-            [ $i -lt 3 ] && echo "Failed, retrying in 15s..." && sleep 15 || exit 1
+          for file in $FILES; do
+            for i in 1 2 3; do
+              echo "Copying $file (attempt $i)..."
+              ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 "$USER@$HOST" \
+                "cat > $DIR/$(basename $file)" < "$file" && break
+              [ $i -lt 3 ] && echo "Failed, retrying in 15s..." && sleep 15 || exit 1
+            done
           done
 
       - name: Deploy via SSH
