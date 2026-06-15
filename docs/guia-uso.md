@@ -159,13 +159,19 @@ jobs:
 - `SERVER_IP` — IP o dominio del servidor
 - `DEPLOY_SSH_USER` — usuario SSH
 
-**Secret requerido** (sincronizado desde `org-admin`):
-- `SSH_PRIVATE_KEY` — clave privada SSH
+**Secrets** (sincronizados desde `org-admin`):
+- `SSH_PRIVATE_KEY` — requerido
+- `DISCORD_WEBHOOK` — opcional, notificación a Discord
+- `GHCR_READ_TOKEN` — opcional, PAT con scope `read:packages`. Si está presente, el workflow hace `docker login ghcr.io` en el servidor antes del pull. Necesario para imágenes privadas de GHCR (ej: `ghcr.io/purisuapu/facturacion:latest`).
 
-**Prerrequisito en el servidor:** el directorio `/opt/<service-name>/` debe existir con un `docker-compose.yml` que use la imagen de GHCR. El usuario SSH debe tener la clave pública correspondiente a `SSH_PRIVATE_KEY` en `~/.ssh/authorized_keys`.
+**Prerrequisito en el servidor:** el directorio `/opt/<service-name>/` debe existir. El usuario SSH debe tener la clave pública correspondiente a `SSH_PRIVATE_KEY` en `~/.ssh/authorized_keys`.
+
+**Nota:** la copia de archivos usa SSH+stdin en lugar de SCP para no depender del subsistema SFTP. Si el usuario SSH tiene restricciones de shell, el SCP puede fallar con "Connection closed" aunque el SSH funcione.
 
 **Qué ejecuta en el servidor:**
 ```bash
+# Con GHCR_READ_TOKEN (imagen privada):
+echo $TOKEN | docker login ghcr.io -u <org> --password-stdin
 cd /opt/<service-name>
 docker compose pull
 docker compose up -d --remove-orphans
@@ -278,7 +284,8 @@ jobs:
 | `Error: buildx failed` en docker.yml | El Dockerfile tiene un error de sintaxis | Revisar el Dockerfile localmente con `docker build .` |
 | `SSH: handshake failed` en deploy.yml | Clave pública no instalada en el servidor | Añadir la clave pública de `SSH_PRIVATE_KEY` en `~/.ssh/authorized_keys` del servidor |
 | `no such file or directory` en deploy.yml | El directorio del servicio no existe en el servidor | Crear `/opt/<service-name>/` y añadir el `docker-compose.yml` |
-| `docker compose pull` falla con 401 | El servidor no tiene acceso a GHCR | Hacer `docker login ghcr.io` en el servidor con un PAT |
+| `docker compose pull` falla con 401 | El servidor no tiene acceso a la imagen privada de GHCR | Crear PAT con scope `read:packages`, añadirlo como secret `GHCR_READ_TOKEN` en `org-admin` y ejecutar Organization Sync |
 | Release no genera notas | No hay commits convencionales desde la última release | Las notas automáticas requieren el formato `feat:`, `fix:`, etc. |
 | El workflow no aparece en el repo destino | El archivo `.github/workflows/ci.yml` no existe en ese repo | Asegurarse de que el repo se creó desde `template-project` |
 | `i/o timeout` en SSH | CrowdSec bloqueó la IP del runner | El retry loop usa IPs diferentes en cada intento — reintenta automáticamente |
+| `scp: Connection closed` en Copy files | El usuario SSH tiene ForceCommand que bloquea SFTP | Ya resuelto: el workflow usa SSH+stdin en lugar de SCP desde ci-templates@main |

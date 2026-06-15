@@ -94,11 +94,15 @@ jobs:
 |---|---|---|
 | `service-name` | Nombre del servicio (= nombre del repo) | **requerido** |
 | `deploy-path` | Ruta en el servidor donde está el `docker-compose.yml` | `/opt/<service-name>` |
+| `compose-file` | Nombre del archivo compose en el repo | `docker-compose.yaml` |
+| `sync-files` | Archivos adicionales a copiar al servidor (separados por coma) | `''` |
 | `environment` | Entorno (`production` / `staging`) | `production` |
 | `notify-discord` | Notificar a Discord | `true` |
 
 Variables de org requeridas (llegan vía `org-admin`): `SERVER_IP`, `DEPLOY_SSH_USER`.
-Secret requerido: `SSH_PRIVATE_KEY`. Secret opcional: `DISCORD_WEBHOOK`.
+Secret requerido: `SSH_PRIVATE_KEY`. Secrets opcionales: `DISCORD_WEBHOOK`, `GHCR_READ_TOKEN` (si el servicio usa una imagen privada de GHCR, el workflow hace `docker login ghcr.io` en el servidor antes del pull).
+
+> **Nota:** la copia de archivos usa SSH+stdin (`cat > remote-file < local-file`) en lugar de SCP para evitar la dependencia del subsistema SFTP.
 
 La notificación Discord incluye el campo **Source** con el evento que disparó el deploy (`push`, `workflow_dispatch`, `schedule`).
 
