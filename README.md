@@ -124,6 +124,8 @@ Secret requerido: `SSH_PRIVATE_KEY`. Secret opcional: `DISCORD_WEBHOOK`.
 
 Secret requerido: `SSH_PRIVATE_KEY`. Variables requeridas: `SERVER_IP`, `DEPLOY_SSH_USER`.
 
+> **Importante:** `script` se envía al servidor remoto vía stdin (`bash -s <<'REMOTE_SCRIPT'`), no como argumento entre comillas. Esto significa que `$VARIABLE` y `$(comando)` dentro del script se expanden en el **servidor remoto**, no en el runner local. Si necesitas inyectar un valor del runner (ej. un secret), pásalo como variable de entorno antes del heredoc, no dentro del propio `script`.
+
 ### `release.yml`
 
 | Input | Descripción | Default |
