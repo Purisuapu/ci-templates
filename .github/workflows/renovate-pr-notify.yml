@@ -1,0 +1,11 @@
+name: Renovate PR Notification
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  notify:
+    if: github.actor == 'renovate[bot]'
+    uses: PURISUAPU/ci-templates/.github/workflows/renovate-notify.yml@main
+    secrets: inherit
