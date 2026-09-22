@@ -93,7 +93,7 @@ jobs:
           USER="${{ vars.DEPLOY_SSH_USER }}"
           GHCR_LOGIN=""
           if [ -n "$GHCR_TOKEN" ]; then
-            GHCR_LOGIN="echo $GHCR_TOKEN | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin &&"
+            GHCR_LOGIN="(echo $GHCR_TOKEN | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin || echo 'WARN: GHCR login failed, continuing without it') &&"
           fi
           for i in 1 2 3; do
             echo "SSH attempt $i..."
